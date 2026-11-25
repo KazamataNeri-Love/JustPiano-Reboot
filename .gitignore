@@ -1,0 +1,18 @@
+# Original copyrighted APK & pre-unpacked assets (tracked by SHA-256 in docs/reverse-map.md)
+raw/*.apk
+res/
+
+# Build & reverse-engineering temporary artifacts
+*.apk
+*.idsig
+*.jks
+*.keystore
+build/
+.gradle/
+.idea/
+*.iml
+out/
+dist/
+*.log
+.DS_Store
+Thumbs.db
