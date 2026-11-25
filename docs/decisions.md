@@ -33,13 +33,13 @@
 
 ## ADR-002：项目管理与版本托管方式 —— 本地文档驱动 vs GitHub Issues
 
-- **状态**：`Accepted（已拍板）`
+- **状态**：`Accepted（已改判为 GitHub 托管，待建库并关联 remote）`
 - **日期**：`2026-11-25`
-- **背景**：确定本项目是接入 GitHub 仓库与 Issues/Milestones 跟踪，还是仅在本地使用 Git + Markdown 文档驱动。
+- **背景**：确定本项目是仅在本地以 Git + Markdown 文档驱动，还是托管至 GitHub 仓库并结合 Issues / Milestones 管理四阶段工作项。
 - **备选方案**：
-  1. **方案 A：纯本地 Git + Markdown 文档跟踪**
-  2. **方案 B：GitHub 私有仓库 + Issues / Milestones**
-- **结论**：**采用方案 A（仅本地管理）**。
-  - 初始化本地 Git 单主干 `main`，严格遵守短分支 + 原子提交 + 里程碑 tag 纪律。
-  - 通过 `.gitignore` 排除 `raw/*.apk` 与工作区既有 `res/`（避免 14 MB 二进制与受版权保护解包资产进入 Git 历史，原始指纹以 `docs/reverse-map.md` 的 SHA-256 锁定）。
-- **复审条件**：若后续需要多人协作或异地云端备份，再评估是否推送纯自研代码/补丁至私有远程仓库。
+  1. **方案 A：纯本地 Git + Markdown 文档跟踪**（初版曾拟采用）
+  2. **方案 B：GitHub 仓库（优先 Private）+ Issues / Milestones**
+- **结论**：**采用方案 B（GitHub 建库 + Issues / Milestones 管理）**。
+  - 维持单主干 `main` + 短分支 + PR/1 轮盲审纪律，四阶段门禁映射为 4 个 Milestone（Phase 0 ~ Phase 3）。
+  - **版权与合规红线**：`.gitignore` 严格排除 `raw/*.apk`、`res/`、`*.apk` 等原版二进制与受版权保护的解包资产（谱面 `.pm`、采样 `.ogg`、原版贴图），仓库仅保存文档、补丁、脚本与自研代码，原版 APK 仅以 `docs/reverse-map.md` 中的 SHA-256 指纹留证。
+- **复审条件**：若仓库设为 Public，须在推送前再次核查 `raw/golden/` 截图及所有后续解包目录是否均已被 `.gitignore` 彻底屏蔽。
