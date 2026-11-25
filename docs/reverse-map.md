@@ -92,7 +92,7 @@
 | `480` / `540` / `720` | `PlayView.java:342-434` (`a()`) | **屏幕高度 `JPApplication.H()` 分档阈值**，决定加载普清/`_w`/`_qd`/`_hd` 贴图、判定线高度 `O` (`10.0f`/`12.5f`/`15.0f`) 与落速系数 `bi`（非 MIDI PPQN） | **已核实** | 纳入虚拟画布资源选档策略 |
 | `160` | `JustPianoView.java:92` (`onDraw`) | **ARGB 颜色绿色分量**：`m.setARGB(255, 12, 160, 251)`（天蓝色文字，非 DPI） | **已核实** | **严禁改动** |
 | `250` | `PlayView.java:238, 327` (`<init>`) | **ARGB 颜色绿色分量**：`az.setARGB(100, 200, 250, 100)`（浅绿色进度条底，非白键高度） | **已核实** | **严禁改动** |
-| `12f` / `32f` / `62f` / `100f` | `PlayView.java:234-237, 320-323` (`<init>`) | **判定窗口乘数**：`aU`(Perfect) / `aV`(Cool) / `aW`(Great) / `aX`(Bad)，按 `fB * k * 10 * noteHeight / bi / 16` 换算 | **已核实** | Phase 2 在虚拟画布坐标系内等价换算，保持判定手感不变 |
+| `12f` / `32f` / `62f` / `100f` | `PlayView.java:234-237, 320-323` (`<init>`) | **判定窗口乘数**：`aU`(Perfect) / `aV`(Cool) / `aW`(Great) / `aX`(Bad)，按 `fB * w * 10 * noteHeight / bi / 16`（`w ∈ {12,32,62,100}`）换算 | **已核实** | Phase 2 在虚拟画布坐标系内等价换算，保持判定手感不变 |
 | `100` / `100.0f` | `JPApplication.java:304`、`am.java:29,34,60,65,79,84`、`by.java:167,220`、`PlayView.java:1025`、`JustPiano.java:378,390` | **业务非屏幕常数**：SoundPool 音量百分比 (`0..100`) 与启动加载进度百分比 (`0..100`) | **已核实** | **严禁改动** |
 | `35` | `PlayView.java:439`、`KeyBoard.java:234` | `keyboard_long.png` 高度 35px，用于算黑键高 `((H - 35) * 10) / 34` | **已核实** | Phase 2 统一接入虚拟画布高度基准 |
 | `320.0f` | `MelodySelect.java:282`（及在线选曲页） | 广点通广告条 `BannerView` 宽度 `320dp × 50dp` | **已核实** | **Phase 1 随广告 SDK 直接剥离** |
@@ -102,15 +102,15 @@
 
 ## 8. Phase 1 核心单机类映射表与重建边界（Issue `#2`）
 
-### 8.1 `.pm` 谱面二进制格式规范（已核实：`kr.java`）
-- **首行**：UTF-8 曲名 + `\n`（设 UTF-8 字节长度为 `o`）。
-- **头部第 `o + 1` 字节**：速度/节拍系数 `k`（写入 `PlayView.R`，负值按无符号补码 `+256`）。
-- **主体 `[o + 2 .. len - 3]`**：每 4 字节为 1 条音符事件（按 `(idx - o) % 4` 分组）：
-  - `% 4 == 0`：`f[]` — MIDI 音高（`PlayView.bq`）
-  - `% 4 == 1`：`i[]` — 力度/音量（`PlayView.bs`，0..100）
-  - `% 4 == 2`：`g[]` — Delta Time 间隔（`PlayView.bp`）
-  - `% 4 == 3`：`h[]` — 音轨/手别（`PlayView.br`，与 `PlayView.bn` 比对：0=右手主奏、1=左手）
-- **尾部 2 字节**：`len - 2` 为时间步进乘数 `j`（`PlayView.aB`，负值 `+256`）；`len - 1` 除以 `10.0f` 为曲目难度 `p`。
+### 8.1 `.pm` 谱面二进制格式规范（已核实：`kr.java:60-163`）
+- **首行**：UTF-8 曲名 + `\n`（`o` 为**不含 `\n`** 的曲名 UTF-8 字节长度，索引 `o` 处为 `\n`）。
+- **头部第 `o + 1` 字节**：速度/节拍系数 `kr.k`（有符号字节；写入 `PlayView.R`，在 `PlayView.java:460-465, 532-537` 以 `<= 0` 时 `+256` 规整，注：`0` 也会变为 `256`）。
+- **主体 `[o + 2 .. len - 3]`**：每 4 字节为 1 条音符事件；因起始偏移为 `o + 2`，**物理字节顺序**依次为 `[g, h, f, i]`（对应 `(idx - o) % 4` 分别为 `2, 3, 0, 1`）：
+  - 偏移 `+0`（`% 4 == 2`）：`g[]` — Delta Time 间隔（`PlayView.bp`）
+  - 偏移 `+1`（`% 4 == 3`）：`h[]` — 音轨/手别（`PlayView.br`，与 `PlayView.bn` 比对：0=右手主奏、1=左手）
+  - 偏移 `+2`（`% 4 == 0`）：`f[]` — MIDI 音高（`PlayView.bq`）
+  - 偏移 `+3`（`% 4 == 1`）：`i[]` — 力度/音量（`PlayView.bs`，0..100）
+- **尾部 2 字节**：`len - 2` 为时间步进乘数 `kr.j`（写入 `PlayView.aB`，同样在 `PlayView` 中以 `<= 0` 时 `+256` 规整）；`len - 1` 除以 `10.0f` 为曲目难度 `kr.p`。
 - **现代 Android 修复点**：原版依赖 `AssetInputStream.reset()` 回退流；重建时应直接一次性读入 `byte[]` 再解析，消除不同 Android 版本 `AssetInputStream` 行为差异。
 
 ### 8.2 核心单机类映射（仅 ~48 个业务类，剔除 97% 死 SDK 与联网大厅）
@@ -127,11 +127,11 @@
 ### 8.3 JADX 第三方常量折叠清单（Issue `#3` 剥离死 SDK 时必须还原）
 | JADX 误折叠符号 | 实际字面量 | 出现位置 |
 | :--- | :--- | :--- |
-| `com.umeng.common.util.g.b` | `256` | `PlayView.aF`（无符号字节补码） |
+| `com.umeng.common.util.g.b` | `256` | `PlayView.java:201,292`（无符号字节补码）、`jv.java:38`、`JPApplication.java:383,523` |
 | `com.umeng.socialize.bean.StatusCode.ST_CODE_SUCCESSED` | `200` | `PlayView.java:238,327`、`q.java:38`、`KeyBoard.java:174,253`（ARGB 颜色） |
 | `com.umeng.socialize.common.SocializeConstants.PLATFORM_ID_TWITTER` | `12` | `JPApplication.java:173,475`、`an.java:77,163`（高音 C 键号 `12`） |
 | `com.umeng.socialize.common.SocializeConstants.MASK_USER_CENTER_LOGIN_VERIFY` | `15` | `an.java:86,172`（下排黑键 C# 键号 `15`） |
 | `com.umeng.socialize.a.b.b.as` | `"name"` | `JustPiano`、`MelodySelect`、`PianoPlay`、`PlayFinish`（SQLite 列名与 Intent key） |
-| `com.qq.e.comm.constants.ErrorCode.InitError.INIT_AD_ERROR` | `500` | `JustPiano.m`（扫描计数步进） |
-| `com.qq.e.comm.constants.ErrorCode.NetWorkError.STUB_NETWORK_ERROR` | `400` | `SkinListPreference.java:98`（弹窗最小宽） |
+| `com.qq.e.comm.constants.ErrorCode.InitError.INIT_AD_ERROR` | `300` | `JustPiano.java:35`（扫描计数步进，核自 `ErrorCode.java:18`） |
+| `com.qq.e.comm.constants.ErrorCode.NetWorkError.STUB_NETWORK_ERROR` | `400` | `SkinListPreference.java:98`、`SoundListPreference.java:96`（弹窗最小宽） |
 
