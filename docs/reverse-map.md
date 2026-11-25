@@ -1,6 +1,6 @@
 # Reverse Map — 逆向考古地图
 
-> 状态：`Phase 0 静态体检完成（只读分析）` | 更新日期：`2026-11-25`
+> 状态：`Phase 1 核心类反编译与魔数核实完成（Issue #2）` | 更新日期：`2026-11-25`
 > 原则：所有结论均基于对冻结原版 APK 的只读静态提取，未修改任何源码或执行重打包。
 
 ## 1. APK 基础指纹
@@ -85,17 +85,53 @@
 | 广点通广告 / 友盟统计与增量更新 / QQ 分享 | `sdk.e.qq.com`、`au.umeng.com`、`alog.umeng.com`、`mta.qq.com` + `libbspatch.so` | **中危崩溃/卡顿**（明文 HTTP + 动态加载 `gdtadv2.jar` + 32 位 `bspatch`） | `JustPiano.onCreate`、`MainMode`、`bb`/`dh`/`le`/`ln`、`DeltaUpdate` | Phase 1 禁用动态插件/更新触发，防闪退；Phase 3 彻底剥离 |
 
 ## 7. 硬编码魔数语义表（严禁未标定即全局替换）
-> 已扫描 `ly/pp/justpiano/*` 全部字节码常量；当前标定基于静态上下文，进入 Phase 2 修改前须反编译对应方法逐行二次核实。
+> 已通过 JADX 1.5.7 反编译核心业务源码逐行二次核实，全部条目均已标定证据行号（`decompiled/sources/ly/pp/justpiano/`）。
 
-| 数值 | 出现位置 (`类.方法`) | 语义归属 | 验证状态 | Phase 2 处置策略 |
+| 数值 | 出现位置 (`文件:行`) | 语义归属 | 验证状态 | Phase 2 处置策略 |
 | :--- | :--- | :--- | :--- | :--- |
-| `480` | `PlayView.a()`（与 `540`、`720`、`key_board_hd`、`background_hd` 同方法） | **屏幕高度分档阈值**（选择普清/HD 贴图档位，非 MIDI PPQN） | 静态初判（待反编译源码二次核实） | 纳入虚拟画布资源选档策略 |
-| `540` | `PlayView.a()`（与 `480`、`720` 并列） | **屏幕高度分档阈值**（qHD 960×540 档位） | 静态初判（待核实） | 同上 |
-| `720` | `PlayView.a()`（与 `480`、`540` 并列） | **屏幕高度分档阈值**（HD 1280×720 档位） | 静态初判（待核实） | 同上 |
-| `160` | `JustPianoView.onDraw()` | 待定（疑似 `Paint.setARGB` 色彩值 `12,160,251` 或基准 DPI） | **未核实**（极可能是 RGB 蓝色分量！） | **严禁误改**；反编译核实是否为颜色常量 |
-| `250` | `PlayView.<init>()`（与 `100`、`200` 并列） | 待定（疑似判定窗口/动画时长或白键高度 250px） | **未核实** | 反编译核实语义后再定 |
-| `100` / `100.0f` | `PlayView.<init>/c`、`by.a/c`、`am.onTouch`、`JPApplication.a`（SoundPool 音量）、`JustPiano.run`（加载进度 100%） | **多义重合值**：同时出现于音量百分比、加载进度、判定/坐标比例与白键宽度 | **未核实** | 严禁全局替换，必须逐方法拆解 |
-| `320.0f` | `MelodySelect`/`OLMelodySelect`/`ShowSongsInfo`/`ShowTopInfo` `.onCreate()` | 疑似列表/侧栏宽度或字体/DPI 基准 | **未核实** | 结合对应 Layout XML 核实 |
-| `400` | `SkinListPreference`/`SoundListPreference` `.onPrepareDialogBuilder()` | 弹窗高度或列表宽度像素值 | **未核实** | 仅涉及设置弹窗，Phase 2 改为 dp/约束 |
-| `240` | `UsersInfo.a()` | 疑似头像裁剪尺寸（240×240） | **未核实** | 在线资料功能，离线化阶段可忽略 |
-| `800` | `ly/pp/justpiano/*` 字节码中**未发现直接 `800` 立即数**（贴图本身宽 `800px`） | 贴图固有像素宽（运行时多通过 `Bitmap.getWidth()`/`JPApplication.H()` 计算） | 静态初判 | Phase 2 核查是否以 `Bitmap` 尺寸隐式驱动布局 |
+| `480` / `540` / `720` | `PlayView.java:342-434` (`a()`) | **屏幕高度 `JPApplication.H()` 分档阈值**，决定加载普清/`_w`/`_qd`/`_hd` 贴图、判定线高度 `O` (`10.0f`/`12.5f`/`15.0f`) 与落速系数 `bi`（非 MIDI PPQN） | **已核实** | 纳入虚拟画布资源选档策略 |
+| `160` | `JustPianoView.java:92` (`onDraw`) | **ARGB 颜色绿色分量**：`m.setARGB(255, 12, 160, 251)`（天蓝色文字，非 DPI） | **已核实** | **严禁改动** |
+| `250` | `PlayView.java:238, 327` (`<init>`) | **ARGB 颜色绿色分量**：`az.setARGB(100, 200, 250, 100)`（浅绿色进度条底，非白键高度） | **已核实** | **严禁改动** |
+| `12f` / `32f` / `62f` / `100f` | `PlayView.java:234-237, 320-323` (`<init>`) | **判定窗口乘数**：`aU`(Perfect) / `aV`(Cool) / `aW`(Great) / `aX`(Bad)，按 `fB * w * 10 * noteHeight / bi / 16`（`w ∈ {12,32,62,100}`）换算 | **已核实** | Phase 2 在虚拟画布坐标系内等价换算，保持判定手感不变 |
+| `100` / `100.0f` | `JPApplication.java:304`、`am.java:29,34,60,65,79,84`、`by.java:167,220`、`PlayView.java:1025`、`JustPiano.java:378,390` | **业务非屏幕常数**：SoundPool 音量百分比 (`0..100`) 与启动加载进度百分比 (`0..100`) | **已核实** | **严禁改动** |
+| `35` | `PlayView.java:439`、`KeyBoard.java:234` | `keyboard_long.png` 高度 35px，用于算黑键高 `((H - 35) * 10) / 34` | **已核实** | Phase 2 统一接入虚拟画布高度基准 |
+| `320.0f` | `MelodySelect.java:282`（及在线选曲页） | 广点通广告条 `BannerView` 宽度 `320dp × 50dp` | **已核实** | **Phase 1 随广告 SDK 直接剥离** |
+| `400` | `SkinListPreference.java:98`（及 `SoundListPreference`） | `LinearLayout.setMinimumWidth(400)`（JADX 折叠为 `ErrorCode.NetWorkError.STUB_NETWORK_ERROR`） | **已核实** | 仅设置弹窗最小宽，Phase 2 改 dp |
+| `240` | `UsersInfo.java:76-77` | 在线头像裁剪 `outputX/outputY = 240`（JADX 折叠为 `SocializeConstants.MASK_USER_CENTER_HIDE_AREA`） | **已核实** | 在线资料功能，**Phase 1 直接剥离** |
+| `800` | 全业务源码无 `800` 立即数 | 仅作标准贴图固有宽（`800px`）；运行时坐标全部由 `JPApplication.I()`(宽) / `H()`(高) 按比例派生（`I/8`、`I/16`、`I*3/80`、`H/2 - O`、`H*10/34`、`I/120`） | **已核实** | **重大利好**：渲染与触控均集中依赖 `JPApplication.I()/H()`，Phase 2 虚拟画布接管点极干净 |
+
+## 8. Phase 1 核心单机类映射表与重建边界（Issue `#2`）
+
+### 8.1 `.pm` 谱面二进制格式规范（已核实：`kr.java:60-163`）
+- **首行**：UTF-8 曲名 + `\n`（`o` 为**不含 `\n`** 的曲名 UTF-8 字节长度，索引 `o` 处为 `\n`）。
+- **头部第 `o + 1` 字节**：速度/节拍系数 `kr.k`（有符号字节；写入 `PlayView.R`，在 `PlayView.java:460-465, 532-537` 以 `<= 0` 时 `+256` 规整，注：`0` 也会变为 `256`）。
+- **主体 `[o + 2 .. len - 3]`**：每 4 字节为 1 条音符事件；因起始偏移为 `o + 2`，**物理字节顺序**依次为 `[g, h, f, i]`（对应 `(idx - o) % 4` 分别为 `2, 3, 0, 1`）：
+  - 偏移 `+0`（`% 4 == 2`）：`g[]` — Delta Time 间隔（`PlayView.bp`）
+  - 偏移 `+1`（`% 4 == 3`）：`h[]` — 音轨/手别（`PlayView.br`，与 `PlayView.bn` 比对：0=右手主奏、1=左手）
+  - 偏移 `+2`（`% 4 == 0`）：`f[]` — MIDI 音高（`PlayView.bq`）
+  - 偏移 `+3`（`% 4 == 1`）：`i[]` — 力度/音量（`PlayView.bs`，0..100）
+- **尾部 2 字节**：`len - 2` 为时间步进乘数 `kr.j`（写入 `PlayView.aB`，同样在 `PlayView` 中以 `<= 0` 时 `+256` 规整）；`len - 1` 除以 `10.0f` 为曲目难度 `kr.p`。
+- **现代 Android 修复点**：原版依赖 `AssetInputStream.reset()` 回退流；重建时应直接一次性读入 `byte[]` 再解析，消除不同 Android 版本 `AssetInputStream` 行为差异。
+
+### 8.2 核心单机类映射（仅 ~48 个业务类，剔除 97% 死 SDK 与联网大厅）
+| 分层 | 原类名 | 语义角色 | 关键依赖 / 布局 | Phase 1 处置 |
+| :--- | :--- | :--- | :--- | :--- |
+| 全局与音频 | `JPApplication` | 全局屏参 (`I()`/`H()`)、键位几何 (`u/v/w/x/y/z`)、`SoundPool` 音频引擎、设置项与贴图加载 | `assets/sound/32..108.ogg`、`assets/drawable/*.png` | **剥离** `com.baidu.location.*`、`UMSocialService`、`ConnectionService` 与 `j.a()` |
+| 数据与谱面 | `is` / `i` / `kr` | SQLite (`jp_data` v36) / 分类与排序常量表 / `.pm` 谱面解析器 | `assets/songs/` (4,801 `.pm`) | 保留表结构与 1:1 解析逻辑；`kr` 改内存缓冲读取 |
+| 启动与主菜单 | `JustPiano` / `al` / `JustPianoView` / `MainMode` / `PlayModeSelect` | 启动建库+载入 77 采样 → 主菜单 → 单机模式选择（演奏/练习/自由/试听/双排键盘） | `main_mode.xml`、`play_select.xml` | **剥离** `InterstitialAD`、`MobclickAgent`、`FeedbackAgent`、`UmengUpdateAgent`；将 `/JustPiano/Skins/ReadMe.txt` 改为 `getExternalFilesDir()` 并加容错 |
+| 本地选曲 | `MelodySelect` / `bn` / `bo` / `mg` / `iq` / `jv` + 监听内部类 | 分类浏览、拼音/名称/难度/分数排序、搜索、后台试听线程 (`jv`) | `melodylist1`、`f_view`、`c_view`、`options`、`page_list`、`message_send` | **剥离** 广点通 `BannerView`（`320dp×50dp`）；修正原版 `S`/`T` 复选框误绑到 `R` 的反编译笔误核查（1:1 对照原版行为） |
+| 核心演奏 | `PianoPlay` / `PlayView` / `KeyBoardView` / `q` / `bz` / `ks` / `kq` / `by` / `jw` / `jf` / `js` / `jb` / `jc` / `jd` | `SurfaceView` 主画布 + 渲染线程 `q` + 落键推进 `bz` + 判定动画 `ks`/`kq` + 音符 `by` + 触控 `jw` + 键盘高亮覆盖层 `KeyBoardView` | `pusedplay.xml` | **严守红线 1**：1:1 保留全部绘制坐标与触控逻辑；仅移除在线模式 `head=2/3`、`ConnectionService` 与 `MobclickAgent`；`PianoPlay` 继承 `Activity`（不再依赖 `BaseActivity`） |
+| 自由双排键盘 | `KeyBoard` / `an` / `am` | 双排 8+8 白键自由弹奏 + 顶部八度滑条 + 2 指多点触控 (`0xFF00`) | 纯 Canvas 绘制 | 1:1 保留绘制与多指触控；仅移除 `MobclickAgent` |
+| 结算与弹窗 | `PlayFinish` / `SettingsMode` / `m`/`l` / `ke`/`kf` / `ScrollText` | 结算写本地最高分至 SQLite / 偏好设置 / 自定义弹窗与加载框 | `finish.xml`、`mydialog.xml`、`prgdialog.xml` | 移除友盟分享与在线分数上传 (`head=1`) |
+
+### 8.3 JADX 第三方常量折叠清单（Issue `#3` 剥离死 SDK 时必须还原）
+| JADX 误折叠符号 | 实际字面量 | 出现位置 |
+| :--- | :--- | :--- |
+| `com.umeng.common.util.g.b` | `256` | `PlayView.java:201,292`（无符号字节补码）、`jv.java:38`、`JPApplication.java:383,523` |
+| `com.umeng.socialize.bean.StatusCode.ST_CODE_SUCCESSED` | `200` | `PlayView.java:238,327`、`q.java:38`、`KeyBoard.java:174,253`（ARGB 颜色） |
+| `com.umeng.socialize.common.SocializeConstants.PLATFORM_ID_TWITTER` | `12` | `JPApplication.java:173,475`、`an.java:77,163`（高音 C 键号 `12`） |
+| `com.umeng.socialize.common.SocializeConstants.MASK_USER_CENTER_LOGIN_VERIFY` | `15` | `an.java:86,172`（下排黑键 C# 键号 `15`） |
+| `com.umeng.socialize.a.b.b.as` | `"name"` | `JustPiano`、`MelodySelect`、`PianoPlay`、`PlayFinish`（SQLite 列名与 Intent key） |
+| `com.qq.e.comm.constants.ErrorCode.InitError.INIT_AD_ERROR` | `300` | `JustPiano.java:35`（扫描计数步进，核自 `ErrorCode.java:18`） |
+| `com.qq.e.comm.constants.ErrorCode.NetWorkError.STUB_NETWORK_ERROR` | `400` | `SkinListPreference.java:98`、`SoundListPreference.java:96`（弹窗最小宽） |
+
