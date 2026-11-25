@@ -1,12 +1,35 @@
-# Original copyrighted APK & pre-unpacked assets (tracked by SHA-256 in docs/reverse-map.md)
-raw/*.apk
+# === PUBLIC REPO COPYRIGHT PROTECTION (NEVER PUSH ORIGINAL ASSETS) ===
+# Original APK, unpacked directory, and golden screenshots (kept local only)
+raw/*
+!raw/README.md
+!raw/golden/
+raw/golden/*
+!raw/golden/.gitkeep
 res/
 
-# Build & reverse-engineering temporary artifacts
+# Copyrighted binary/media assets extracted from original APK at build time
 *.apk
+*.ap_
+*.dex
+*.arsc
+*.pm
+*.ogg
+*.so
+*.sf2
+src/**/assets/songs/
+src/**/assets/sound/
+src/**/assets/drawable/
+src/**/assets/mod/
+src/**/assets/gdt_plugin/
+work/
+unpacked/
+decompiled/
+
+# Signing keys & build outputs
 *.idsig
 *.jks
 *.keystore
+local.properties
 build/
 .gradle/
 .idea/
